@@ -1,0 +1,283 @@
+
+BasicGame.Game = function (game) {
+
+	//	When a State is added to Phaser it automatically has the following properties set on it, even if they already exist:
+
+    this.game;		//	a reference to the currently running game
+    this.add;		//	used to add sprites, text, groups, etc
+    this.camera;	//	a reference to the game camera
+    this.cache;		//	the game cache
+    this.input;		//	the global input manager (you can access this.input.keyboard, this.input.mouse, as well from it)
+    this.load;		//	for preloading assets
+    this.math;		//	lots of useful common math operations
+    this.sound;		//	the sound manager - add a sound, play one, set-up markers, etc
+    this.stage;		//	the game stage
+    this.time;		//	the clock
+    this.tweens;    //  the tween manager
+    this.state;	    //	the state manager
+    this.world;		//	the game world
+    this.particles;	//	the particle manager
+    this.physics;	//	the physics manager
+    this.rnd;		//	the repeatable random number generator
+
+    //	You can use any of these from any function within this State.
+    //	But do consider them as being 'reserved words', i.e. don't create a property for your own game called "world" or you'll over-write the world reference.
+
+};
+
+BasicGame.Game.prototype = {
+
+	PLAYER_SPEED: 150,
+	PROJECTILE_SPEED: 300,
+	WORD_TO_COMPLETE: '0123456789',
+	SPAWN_INTERVAL: 1000,
+	ALL_CHARACTERS: '0123456789',
+
+	create: function () {
+
+		this.physics.startSystem(Phaser.Physics.ARCADE);
+		this.bg = this.add.tileSprite(0, 0, 1120, 840, 'bg1');
+		
+		this.initializeWord();
+		
+		this.numbersAndLetters = this.add.group();
+		this.numbersAndLetters.enableBody = true;
+		this.numbersAndLetters.physicsBodyType = Phaser.Physics.ARCADE;
+		
+		this.typeArray = new Array();
+		for(var i=0; i<this.ALL_CHARACTERS_ARRAY.length; i++)
+		{
+			var currentCharacter = this.ALL_CHARACTERS_ARRAY[i];
+			this.typeArray[currentCharacter] = this.add.group();
+			this.typeArray[currentCharacter].createMultiple(10,currentCharacter,false);
+			this.numbersAndLetters.add(this.typeArray[currentCharacter]);
+		}
+
+		this.numbersAndLetters.setAll('enableBody',true);
+		this.numbersAndLetters.setAllChildren('checkWorldBounds',true);
+		this.numbersAndLetters.setAllChildren('outOfBoundsKill',true);
+
+		this.player = this.add.sprite(32, this.world.height - 150, 'player');
+		this.physics.arcade.enable(this.player);
+		this.player.body.collideWorldBounds = true;
+		this.player.animations.add('walk')
+		
+		this.arrowKeys = this.input.keyboard.createCursorKeys();
+
+		
+		this.currentWordIndex = 0;
+		this.nextGenerateTime = this.time.now+this.SPAWN_INTERVAL;
+		this.wrongGenerateTime = this.time.now+this.SPAWN_INTERVAL;
+	
+
+		this.points = 0;
+		this.lives = 2;
+		this.lifeSprite = this.add.sprite(700,32,'heartFull');	
+		this.updateGUI();
+	},
+
+	update: function () {
+		this.bg.tilePosition.x -= 2;
+		this.player.body.velocity.x = 0;
+		this.player.body.velocity.y = 0;
+		this.pollMovementInput();
+		this.checkCollisions();
+		this.checkGenerate();
+	},
+
+	quitGame: function (pointer) {
+
+		//	Here you should destroy anything you no longer need.
+		//	Stop music, delete sprites, purge caches, free resources, all that good stuff.
+
+		//	Then let's go back to the main menu.
+		this.state.start('MainMenu');
+
+	},
+
+	translate: function(character)
+	{
+		if(character=='0')
+			return 'zero';
+		if(character=='1')
+			return 'one';
+		if(character=='2')
+			return 'two';
+		if(character=='3')
+			return 'three';
+		if(character=='4')
+			return 'four';
+		if(character=='5')
+			return 'five';
+		if(character=='6')
+			return 'six';
+		if(character=='7')
+			return 'seven';
+		if(character=='8')
+			return 'eight';
+		if(character=='9')
+			return 'nine';
+		return character;
+	},
+
+	initializeWord: function()
+	{
+		this.goalWordArray = [];
+		for(var i=0; i<this.WORD_TO_COMPLETE.length; i++)
+		{
+			this.goalWordArray[i] = this.translate(this.WORD_TO_COMPLETE[i]);
+		}
+
+		this.ALL_CHARACTERS_ARRAY = [];
+		for(var i=0; i<this.ALL_CHARACTERS.length; i++)
+		{
+			this.ALL_CHARACTERS_ARRAY[i] = this.translate(this.WORD_TO_COMPLETE[i]);
+		}
+
+	},
+	
+	addCollectible: function(x,y,collectibleName)
+	{
+		var newCollectible;
+		//newCollectible = this.numbersAndLetters.create(x,y,collectibleName);
+		newCollectible = this.typeArray[collectibleName].getFirstExists(false);
+		newCollectible.reset(x,y);
+		newCollectible.body.velocity.x = -1*this.PROJECTILE_SPEED+(this.rnd.frac()*100);
+		newCollectible.name = collectibleName;
+	},
+
+	
+	pollMovementInput: function()
+	{
+		var moving = false;
+		
+		if (this.arrowKeys.left.isDown)
+		{
+			//  Move to the left
+			this.player.body.velocity.x = -1*this.PLAYER_SPEED;
+			this.player.animations.play('walk');
+			moving = true;
+		}
+		else if (this.arrowKeys.right.isDown)
+		{
+			//  Move to the right
+			this.player.body.velocity.x = this.PLAYER_SPEED;
+			this.player.animations.play('walk');
+			moving = true;
+		}
+		
+		if (this.arrowKeys.up.isDown)
+		{
+			//  Move to the right
+			this.player.body.velocity.y = -1*this.PLAYER_SPEED; 
+			this.player.animations.play('walk');
+			moving = true;
+		}
+		
+		else if (this.arrowKeys.down.isDown)
+		{
+			//  Move to the right
+			this.player.body.velocity.y = this.PLAYER_SPEED; 
+			this.player.animations.play('walk');
+			moving = true;
+		}
+		
+		
+		if(!moving)
+		{
+			this.player.animations.stop();
+			this.player.frame = 9;
+		}
+
+	},
+	
+	checkCollisions: function()
+	{
+		this.physics.arcade.overlap( this.player, this.numbersAndLetters, this.checkCollect, null, this );
+		for(var i=0; i<this.ALL_CHARACTERS.length; i++)
+		{
+			var currentCharacter = this.ALL_CHARACTERS_ARRAY[i];
+			this.physics.arcade.overlap( this.player, this.typeArray[currentCharacter], this.checkCollect, null, this );
+		}
+	},
+	
+	checkGenerate: function()
+	{
+		if(this.time.now > this.nextGenerateTime)
+		{
+			this.nextGenerateTime = this.time.now + this.SPAWN_INTERVAL + this.rnd.integerInRange(1000,2000);
+
+			var randY = this.rnd.integerInRange(0, 600); 
+
+			this.addCollectible(800,randY,this.goalWordArray[this.currentWordIndex]);
+			
+		}
+
+		if(this.time.now > this.wrongGenerateTime)
+		{
+			this.wrongGenerateTime = this.time.now + this.SPAWN_INTERVAL + this.rnd.integerInRange(-500,500);
+
+			var randY = this.rnd.integerInRange(0, 600); 
+			var randIndex = this.rnd.integerInRange(0, this.goalWordArray.length-1);
+			this.addCollectible(800,randY,this.ALL_CHARACTERS_ARRAY[randIndex]);
+		}
+	},
+
+	checkCollect: function(player,collectible)
+	{
+		// code to check if corresponding with current one that you should collide with
+
+		if(collectible.name == this.goalWordArray[this.currentWordIndex])
+		{
+			this.currentWordIndex++;
+			if(this.currentWordIndex >= this.goalWordArray.length)
+			{
+				this.currentWordIndex=0;
+			}
+		
+		}
+
+		else
+		{
+			this.lives--;
+		}
+
+		document.getElementById("test").innerHTML = collectible.name;
+		collectible.kill();
+		this.updateGUI();
+		
+	},
+
+	updateGUI: function()
+	{
+
+		if(this.lives == 2)
+		{
+			this.lifeSprite.loadTexture('heartFull',0);
+		}
+
+		else if(this.lives == 1)
+		{
+			this.lifeSprite.loadTexture('heartHalf',0);
+		}
+
+		else
+		{
+			this.lifeSprite.loadTexture('heartEmpty',0);
+		}
+
+		this.game.debug.text(this.WORD_TO_COMPLETE.substring(0,this.currentWordIndex),32,64);
+		this.game.debug.text(this.WORD_TO_COMPLETE,32,32);
+
+	},
+
+	pollAttackInput: function()
+	{
+		//if(game.input.keyboard.isDown(Phaser.Keyboard.SPACEBAR))
+		//{
+		//	player.body.velocity.y = -350;
+		//}
+	},
+	
+
+};
