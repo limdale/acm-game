@@ -23,7 +23,7 @@ BasicGame.Preloader.prototype = {
 		this.load.setPreloadSprite(this.preloadBar);
 
 		this.load.image('sky', 'assets/sky.png');
-		this.load.image('ground', 'assets/platform.png');
+		this.load.image('ground', 'assets/ground.png');
 		this.load.image('star', 'assets/star.png');
 		this.load.image('bg1' , 'assets/bg1.png');		
 		this.load.image('zero', 'assets/0.png');

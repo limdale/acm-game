@@ -36,7 +36,10 @@ BasicGame.Game.prototype = {
 	create: function () {
 
 		this.physics.startSystem(Phaser.Physics.ARCADE);
-		this.bg = this.add.tileSprite(0, 0, 1120, 840, 'bg1');
+		this.bg = this.add.tileSprite(0, 0, 800, 600, 'bg1');
+		this.ground = this.add.tileSprite(0,this.world.height - 100,800,100, 'ground');
+		this.physics.arcade.enable(this.ground);
+		this.ground.body.immovable = true;
 		
 		this.initializeWord();
 		
@@ -57,13 +60,14 @@ BasicGame.Game.prototype = {
 		this.numbersAndLetters.setAllChildren('checkWorldBounds',true);
 		this.numbersAndLetters.setAllChildren('outOfBoundsKill',true);
 
-		this.player = this.add.sprite(32, this.world.height - 150, 'player');
+		this.player = this.add.sprite(32, this.world.height/2, 'player');
 		this.physics.arcade.enable(this.player);
 		this.player.body.collideWorldBounds = true;
 		this.player.animations.add('walk')
-		
-		this.arrowKeys = this.input.keyboard.createCursorKeys();
+		this.player.body.gravity.set(0, 700);
 
+		this.arrowKeys = this.input.keyboard.createCursorKeys();
+		this.alreadyClicked = false;
 		
 		this.currentWordIndex = 0;
 		this.nextGenerateTime = this.time.now+this.SPAWN_INTERVAL;
@@ -77,12 +81,14 @@ BasicGame.Game.prototype = {
 	},
 
 	update: function () {
-		this.bg.tilePosition.x -= 2;
+		this.bg.autoScroll(-200,0);
+		this.ground.autoScroll(-200,0);
 		this.player.body.velocity.x = 0;
-		this.player.body.velocity.y = 0;
-		this.pollMovementInput();
+		//this.player.body.velocity.y = 0;
+		
 		this.checkCollisions();
 		this.checkGenerate();
+		this.pollMovementInput();
 	},
 
 	quitGame: function (pointer) {
@@ -183,6 +189,19 @@ BasicGame.Game.prototype = {
 		}
 		
 		
+		if (this.input.activePointer.isDown)
+    	{
+			if(!this.alreadyClicked)
+			{
+       			this.alreadyClicked = true;
+				this.player.body.velocity.y = -350;
+			}	
+    	}
+
+		else
+			this.alreadyClicked = false;
+
+		
 		if(!moving)
 		{
 			this.player.animations.stop();
@@ -199,6 +218,8 @@ BasicGame.Game.prototype = {
 			var currentCharacter = this.ALL_CHARACTERS_ARRAY[i];
 			this.physics.arcade.overlap( this.player, this.typeArray[currentCharacter], this.checkCollect, null, this );
 		}
+
+		this.physics.arcade.collide( this.player, this.ground);
 	},
 	
 	checkGenerate: function()
