@@ -29,20 +29,28 @@ BasicGame.Game.prototype = {
 
 	PLAYER_SPEED: 150,
 	PROJECTILE_SPEED: 300,
-	WORD_TO_COMPLETE: '0123456789',
+	WORD_TO_COMPLETE: '0123456789',  // this is what the goal word is going to be, just change this and the translate function will do the rest
 	SPAWN_INTERVAL: 1000,
-	ALL_CHARACTERS: '0123456789',
+	ALL_CHARACTERS: '0123456789',   // this should contain all the characters
+	GROUND_HEIGHT: 100,
 
 	create: function () {
-
+		
 		this.physics.startSystem(Phaser.Physics.ARCADE);
 		this.bg = this.add.tileSprite(0, 0, 800, 600, 'bg1');
-		this.ground = this.add.tileSprite(0,this.world.height - 100,800,100, 'ground');
+		this.ground = this.add.tileSprite(0,this.world.height - this.GROUND_HEIGHT,800,this.GROUND_HEIGHT,'ground');
 		this.physics.arcade.enable(this.ground);
 		this.ground.body.immovable = true;
 		
 		this.initializeWord();
 		
+
+		// numbersAndLetters contains all the typeArray groups
+		// typeArray is an array of groups, one group per character, 10 characters per group (pool)
+		// ie.  numbersAndLetters = { typeArray['one'] , typeArray[2] , ... etc }
+		//		typeArray['one'] = [1,1,1,1,1,1,1,1,1,1] , where 1 is the Sprite for the '1' character
+		// info is taken from ALL_CHARACTERS_ARRAY, a translated version of ALL_CHARACTERS
+
 		this.numbersAndLetters = this.add.group();
 		this.numbersAndLetters.enableBody = true;
 		this.numbersAndLetters.physicsBodyType = Phaser.Physics.ARCADE;
@@ -77,6 +85,11 @@ BasicGame.Game.prototype = {
 		this.points = 0;
 		this.lives = 2;
 		this.lifeSprite = this.add.sprite(700,32,'heartFull');	
+
+		this.game.input.keyboard.addKeyCapture([Phaser.Keyboard.SPACEBAR]);
+		this.game.input.keyboard.addKeyCapture([Phaser.Keyboard.A]);
+		this.game.input.keyboard.addKeyCapture([Phaser.Keyboard.D]);
+
 		this.updateGUI();
 	},
 
@@ -101,6 +114,9 @@ BasicGame.Game.prototype = {
 
 	},
 
+
+	// this function translates the characters from WORD_TO_COMPLETE and ALL_CHARACTERS
+	// to push into goalWordArray and ALL_CHARACTERS_ARRAY.
 	translate: function(character)
 	{
 		if(character=='0')
@@ -142,6 +158,7 @@ BasicGame.Game.prototype = {
 
 	},
 	
+	// Adds a number or letter at position x,y
 	addCollectible: function(x,y,collectibleName)
 	{
 		var newCollectible;
@@ -157,14 +174,14 @@ BasicGame.Game.prototype = {
 	{
 		var moving = false;
 		
-		if (this.arrowKeys.left.isDown)
+		if (this.arrowKeys.left.isDown || this.input.keyboard.isDown(Phaser.Keyboard.A) )
 		{
 			//  Move to the left
 			this.player.body.velocity.x = -1*this.PLAYER_SPEED;
 			this.player.animations.play('walk');
 			moving = true;
 		}
-		else if (this.arrowKeys.right.isDown)
+		else if (this.arrowKeys.right.isDown || this.input.keyboard.isDown(Phaser.Keyboard.D))
 		{
 			//  Move to the right
 			this.player.body.velocity.x = this.PLAYER_SPEED;
@@ -172,24 +189,8 @@ BasicGame.Game.prototype = {
 			moving = true;
 		}
 		
-		if (this.arrowKeys.up.isDown)
-		{
-			//  Move to the right
-			this.player.body.velocity.y = -1*this.PLAYER_SPEED; 
-			this.player.animations.play('walk');
-			moving = true;
-		}
 		
-		else if (this.arrowKeys.down.isDown)
-		{
-			//  Move to the right
-			this.player.body.velocity.y = this.PLAYER_SPEED; 
-			this.player.animations.play('walk');
-			moving = true;
-		}
-		
-		
-		if (this.input.activePointer.isDown)
+		if (this.input.activePointer.isDown || this.input.keyboard.isDown(Phaser.Keyboard.SPACEBAR))
     	{
 			if(!this.alreadyClicked)
 			{
@@ -227,9 +228,7 @@ BasicGame.Game.prototype = {
 		if(this.time.now > this.nextGenerateTime)
 		{
 			this.nextGenerateTime = this.time.now + this.SPAWN_INTERVAL + this.rnd.integerInRange(1000,2000);
-
-			var randY = this.rnd.integerInRange(0, 600); 
-
+			var randY = this.rnd.integerInRange(0, 600-this.GROUND_HEIGHT); 
 			this.addCollectible(800,randY,this.goalWordArray[this.currentWordIndex]);
 			
 		}
@@ -238,7 +237,7 @@ BasicGame.Game.prototype = {
 		{
 			this.wrongGenerateTime = this.time.now + this.SPAWN_INTERVAL + this.rnd.integerInRange(-500,500);
 
-			var randY = this.rnd.integerInRange(0, 600); 
+			var randY = this.rnd.integerInRange(0, 600-this.GROUND_HEIGHT); 
 			var randIndex = this.rnd.integerInRange(0, this.goalWordArray.length-1);
 			this.addCollectible(800,randY,this.ALL_CHARACTERS_ARRAY[randIndex]);
 		}
